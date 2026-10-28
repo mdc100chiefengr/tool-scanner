@@ -206,10 +206,33 @@
     if (session && techs.includes(session.name)) sel.value = session.name;
     $('pin').value = '';
   }
-  $('start').onclick = () => {
+  $('start').onclick = async () => {
     const name = $('techSel').value, pin = $('pin').value.trim();
-    if (!name || !pin){ $('loginMsg').textContent = 'Choose your name and enter your PIN.'; return; }
+    const msg = $('loginMsg'), btn = $('start');
+    if (!name || !pin){ msg.textContent = 'Choose your name and enter your PIN.'; return; }
     try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+
+    btn.disabled = true; msg.textContent = 'Checking PIN…';
+    let verified = false;
+    try {
+      const d = await post({ action: 'login', tech: name, pin });
+      if (d.error === 'BAD_PIN'){
+        msg.textContent = 'Wrong PIN. Try again.';
+        $('pin').value = ''; $('pin').focus();
+        btn.disabled = false; return;
+      }
+      if (d.error){ msg.textContent = d.error; btn.disabled = false; return; }
+      verified = d.ok === true;
+    } catch(e){
+      // No connection: only allow if this phone already verified this exact name + PIN before
+      const prev = store.get('session');
+      if (prev && prev.name === name && prev.pin === pin) verified = true;
+      else { msg.textContent = 'No connection, so the PIN cannot be checked. Try again when online.'; btn.disabled = false; return; }
+    }
+    btn.disabled = false;
+    if (!verified){ msg.textContent = 'PIN could not be verified.'; return; }
+
+    msg.textContent = '';
     session = { name, pin }; store.set('session', session);
     enterApp();
   };
