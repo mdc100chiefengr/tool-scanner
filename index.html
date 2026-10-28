@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2a33">
+<title>Tool Scanner</title>
+<style>
+  :root{
+    --ink:#1b2a33; --bg:#e9edf0; --panel:#fff; --line:#c9d1d6; --muted:#5d6b74;
+    --out:#1565c0; --in:#2e7d32; --iss:#c62828; --warn:#b26a00;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);
+       padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+  header{background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;
+         display:flex;justify-content:space-between;align-items:center;gap:8px}
+  header b{font-size:17px}
+  header button{background:none;border:1px solid #6b7c86;color:#fff;border-radius:6px;padding:6px 10px;font-size:14px}
+  main{padding:12px;max-width:560px;margin:0 auto}
+  .hidden{display:none!important}
+  button{font:inherit;cursor:pointer}
+  button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #ffb300;outline-offset:2px}
+
+  /* login */
+  #login{padding:20px 14px;max-width:420px;margin:0 auto}
+  #login h1{font-size:22px;margin:8px 0 16px}
+  label{display:block;font-weight:600;margin:14px 0 6px}
+  select,input,textarea{width:100%;font:inherit;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .primary{width:100%;padding:16px;font-size:18px;font-weight:700;border:0;border-radius:10px;color:#fff;background:var(--ink);margin-top:20px}
+
+  /* modes */
+  #modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  #modes button{padding:14px 4px;border:2px solid var(--line);background:#fff;border-radius:10px;font-weight:700;font-size:15px;color:var(--ink)}
+  #modes button[aria-pressed="true"]{color:#fff;border-color:transparent}
+  #modes button[data-m="CHECKOUT"][aria-pressed="true"]{background:var(--out)}
+  #modes button[data-m="RETURN"][aria-pressed="true"]{background:var(--in)}
+  #modes button[data-m="ISSUE"][aria-pressed="true"]{background:var(--iss)}
+
+  /* camera */
+  #camWrap{background:#000;border-radius:12px;overflow:hidden;position:relative;min-height:120px}
+  #reader{width:100%}
+  #camMsg{color:#fff;padding:18px;font-size:15px}
+  #camToggle{margin-top:8px;width:100%;padding:10px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:15px}
+
+  /* list */
+  h2{font-size:16px;margin:18px 0 8px}
+  #list{list-style:none;margin:0;padding:0}
+  #list li{background:var(--panel);border:1px solid var(--line);border-left-width:6px;border-radius:8px;
+           padding:10px 10px 10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  #list li.ok{border-left-color:var(--in)}
+  #list li.bad{border-left-color:var(--warn)}
+  #list .t{flex:1;min-width:0}
+  #list .n{font-weight:700;overflow-wrap:anywhere}
+  #list .s{font-size:14px;color:var(--muted)}
+  #list li.bad .s{color:var(--warn);font-weight:600}
+  #list button{border:0;background:#eef1f3;border-radius:8px;width:44px;height:44px;font-size:20px;color:var(--ink)}
+  #empty{color:var(--muted);padding:6px 2px}
+  #notes{min-height:60px;margin-top:6px}
+
+  /* bottom bar */
+  #bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+       padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  #confirm{display:block;max-width:536px;margin:0 auto;width:100%;padding:18px;font-size:19px;font-weight:700;border:0;border-radius:12px;color:#fff;background:var(--out)}
+  #confirm:disabled{background:#b7c0c6}
+
+  /* toast & banners */
+  #toast{position:fixed;left:12px;right:12px;top:calc(64px + env(safe-area-inset-top,0px));max-width:536px;margin:0 auto;
+         padding:12px 14px;border-radius:10px;color:#fff;font-weight:600;background:var(--ink);z-index:20}
+  #toast.bad{background:var(--iss)} #toast.warn{background:var(--warn)}
+  #pending{background:#fff3cd;border:1px solid #e0c36a;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:15px}
+  #pending button{margin-left:8px;padding:6px 12px;border-radius:6px;border:1px solid #9a7b1c;background:#fff}
+
+  /* results */
+  #results{position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 14px 24px}
+  #results .box{max-width:560px;margin:0 auto}
+  #results ul{list-style:none;padding:0;margin:12px 0}
+  #results li{background:#fff;border:1px solid var(--line);border-left-width:6px;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  #results li.ok{border-left-color:var(--in)} #results li.bad{border-left-color:var(--iss)}
+  #results li span{display:block;font-size:14px;color:var(--muted)}
+  #results li.bad span{color:var(--iss);font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <b>Tool Scanner</b>
+  <span id="who"></span>
+  <button id="switch" class="hidden">Switch</button>
+</header>
+
+<!-- sign in -->
+<section id="login" class="hidden">
+  <h1>Who is scanning?</h1>
+  <label for="techSel">Your name</label>
+  <select id="techSel"></select>
+  <label for="pin">PIN</label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+  <button id="start" class="primary">Start scanning</button>
+  <p id="loginMsg" role="alert"></p>
+</section>
+
+<!-- scanner -->
+<main id="app" class="hidden">
+  <div id="pending" class="hidden"></div>
+
+  <div id="modes" role="group" aria-label="Action">
+    <button data-m="CHECKOUT" aria-pressed="true">Check out</button>
+    <button data-m="RETURN" aria-pressed="false">Return</button>
+    <button data-m="ISSUE" aria-pressed="false">Report issue</button>
+  </div>
+
+  <div id="camWrap">
+    <div id="reader"></div>
+    <div id="camMsg" class="hidden"></div>
+  </div>
+  <button id="camToggle">Pause camera</button>
+
+  <h2 id="listHead">Scanned tools</h2>
+  <ul id="list"></ul>
+  <p id="empty">Point the camera at a tool's QR code. Each scan is added to the list.</p>
+
+  <label for="notes">Notes (optional)</label>
+  <textarea id="notes" placeholder="e.g. job number, or what is wrong with the tool"></textarea>
+</main>
+
+<div id="bar" class="hidden"><button id="confirm" disabled>Check out</button></div>
+<div id="toast" class="hidden" role="status"></div>
+
+<section id="results" class="hidden">
+  <div class="box">
+    <h1 id="resHead">Done</h1>
+    <ul id="resList"></ul>
+    <button id="resDone" class="primary">Done</button>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // ====== SET THIS to your Apps Script web app URL (ends in /exec) ======
+  const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+
+  const MODES = {
+    CHECKOUT: { verb: 'Check out' },
+    RETURN:   { verb: 'Return' },
+    ISSUE:    { verb: 'Report issue on' }
+  };
+  const MODE_COLOR = { CHECKOUT: 'var(--out)', RETURN: 'var(--in)', ISSUE: 'var(--iss)' };
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+    set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+    del(k){ try { localStorage.removeItem(k); } catch(e){} }
+  };
+
+  let techs = [], tools = {}, mode = 'CHECKOUT', scanned = [];
+  let session = store.get('session');
+  let scanner = null, last = { code: '', t: 0 }, audioCtx = null, toastTimer = null, busy = false;
+
+  // ---------- feedback ----------
+  function toast(msg, kind){
+    const t = $('toast'); t.textContent = msg; t.className = kind || '';
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+  }
+  function beep(good){
+    try {
+      if (!audioCtx) return;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = good ? 880 : 220; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.value = 0.15; o.start(); o.stop(audioCtx.currentTime + (good ? 0.12 : 0.3));
+    } catch(e){}
+  }
+  function buzz(){ try { navigator.vibrate && navigator.vibrate(60); } catch(e){} }
+
+  // ---------- data ----------
+  function setTools(arr){
+    tools = {};
+    arr.forEach(t => tools[String(t.id).toUpperCase()] = t);
+  }
+  async function loadInit(){
+    try {
+      const r = await fetch(API_URL + '?action=init');
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      techs = d.technicians; setTools(d.tools); store.set('init', d);
+      return true;
+    } catch(e){
+      const d = store.get('init');
+      if (d){ techs = d.technicians; setTools(d.tools); toast('Offline: using saved tool list', 'warn'); return true; }
+      $('loginMsg').textContent = 'Cannot reach the server. Check the connection and reload.';
+      return false;
+    }
+  }
+
+  // ---------- sign in ----------
+  function showLogin(msg){
+    stopScanner();
+    $('app').classList.add('hidden'); $('bar').classList.add('hidden'); $('switch').classList.add('hidden');
+    $('who').textContent = '';
+    $('login').classList.remove('hidden');
+    $('loginMsg').textContent = msg || '';
+    const sel = $('techSel'); sel.innerHTML = '';
+    techs.forEach(n => { const o = document.createElement('option'); o.textContent = n; o.value = n; sel.appendChild(o); });
+    if (session && techs.includes(session.name)) sel.value = session.name;
+    $('pin').value = '';
+  }
+  $('start').onclick = () => {
+    const name = $('techSel').value, pin = $('pin').value.trim();
+    if (!name || !pin){ $('loginMsg').textContent = 'Choose your name and enter your PIN.'; return; }
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    session = { name, pin }; store.set('session', session);
+    enterApp();
+  };
+  $('switch').onclick = () => { store.del('session'); session = null; scanned = []; render(); showLogin(); };
+
+  function enterApp(){
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden'); $('bar').classList.remove('hidden'); $('switch').classList.remove('hidden');
+    $('who').textContent = session.name;
+    render(); updatePending(); startScanner();
+  }
+
+  // ---------- scanner ----------
+  async function startScanner(){
+    if (scanner) return;
+    $('camMsg').classList.add('hidden');
+    scanner = new Html5Qrcode('reader');
+    try {
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
+        onScan, () => {}
+      );
+      $('camToggle').textContent = 'Pause camera';
+    } catch(err){
+      scanner = null;
+      $('camMsg').textContent = 'Camera could not start. Allow camera access for this site in the browser settings, then tap Resume camera.';
+      $('camMsg').classList.remove('hidden');
+      $('camToggle').textContent = 'Resume camera';
+    }
+  }
+  async function stopScanner(){
+    if (!scanner) return;
+    try { await scanner.stop(); scanner.clear(); } catch(e){}
+    scanner = null;
+  }
+  $('camToggle').onclick = async () => {
+    if (scanner){ await stopScanner(); $('camToggle').textContent = 'Resume camera'; }
+    else startScanner();
+  };
+
+  function parseCode(txt){
+    txt = String(txt).trim();
+    const m = txt.match(/[?&]tool=([^&#]+)/i);
+    return decodeURIComponent(m ? m[1] : txt).trim();
+  }
+  function onScan(txt){
+    if (busy) return;
+    const now = Date.now(), id = parseCode(txt).toUpperCase();
+    if (id === last.code && now - last.t < 2500){ last.t = now; return; }
+    last = { code: id, t: now };
+    const t = tools[id];
+    if (!t){ beep(false); toast('Unknown tag: ' + id, 'bad'); return; }
+    if (scanned.includes(id)){ beep(false); toast(t.name + ' is already in the list', 'warn'); return; }
+    scanned.push(id); beep(true); buzz(); render();
+  }
+
+  // ---------- list ----------
+  function warning(t){
+    if (mode === 'CHECKOUT'){
+      if (t.status === 'Out') return 'Already out' + (t.holder ? ' with ' + t.holder : '');
+      if (t.status === 'Needs Repair') return 'Marked Needs Repair';
+    }
+    if (mode === 'RETURN' && t.status !== 'Out') return 'Not checked out';
+    return '';
+  }
+  function render(){
+    const ul = $('list'); ul.innerHTML = '';
+    scanned.forEach(id => {
+      const t = tools[id], w = warning(t);
+      const li = document.createElement('li'); li.className = w ? 'bad' : 'ok';
+      const box = document.createElement('div'); box.className = 't';
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = t.name;
+      const s = document.createElement('div'); s.className = 's';
+      s.textContent = t.id + ' · ' + (w || t.status);
+      box.appendChild(n); box.appendChild(s);
+      const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Remove ' + t.name);
+      x.onclick = () => { scanned = scanned.filter(i => i !== id); render(); };
+      li.appendChild(box); li.appendChild(x); ul.appendChild(li);
+    });
+    $('empty').classList.toggle('hidden', scanned.length > 0);
+    $('listHead').textContent = scanned.length ? 'Scanned tools (' + scanned.length + ')' : 'Scanned tools';
+    const c = $('confirm');
+    c.disabled = busy || scanned.length === 0;
+    c.style.background = scanned.length && !busy ? MODE_COLOR[mode] : '';
+    c.textContent = busy ? 'Sending…' : scanned.length
+      ? MODES[mode].verb + ' ' + scanned.length + (scanned.length === 1 ? ' tool' : ' tools')
+      : MODES[mode].verb;
+  }
+  document.querySelectorAll('#modes button').forEach(b => {
+    b.onclick = () => {
+      mode = b.dataset.m;
+      document.querySelectorAll('#modes button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      render();
+    };
+  });
+
+  // ---------- sending ----------
+  async function post(payload){
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight
+      body: JSON.stringify(payload)
+    });
+    return r.json();
+  }
+  $('confirm').onclick = async () => {
+    if (!scanned.length || busy) return;
+    const payload = { action: 'batch', tech: session.name, pin: session.pin, mode,
+                      ids: scanned.slice(), notes: $('notes').value.trim() };
+    busy = true; render();
+    let d;
+    try { d = await post(payload); }
+    catch(e){
+      const q = store.get('pending') || []; q.push(payload); store.set('pending', q);
+      busy = false; scanned = []; $('notes').value = ''; render(); updatePending();
+      toast('No connection. Saved on this phone, tap Send when online.', 'warn');
+      return;
+    }
+    busy = false;
+    if (d.error === 'BAD_PIN'){ store.del('session'); session = null; showLogin('PIN not accepted. Try again.'); return; }
+    if (d.error){ render(); toast(d.error, 'bad'); return; }
+    showResults(d.results, MODES[mode].verb);
+  };
+
+  function showResults(results, verb){
+    const okN = results.filter(r => r.ok).length;
+    $('resHead').textContent = okN === results.length
+      ? 'All ' + okN + ' done' : okN + ' of ' + results.length + ' done';
+    const ul = $('resList'); ul.innerHTML = '';
+    results.forEach(r => {
+      const li = document.createElement('li'); li.className = r.ok ? 'ok' : 'bad';
+      li.textContent = (r.name || r.id) + ' (' + r.id + ')';
+      const s = document.createElement('span'); s.textContent = r.ok ? 'Saved' : r.message; li.appendChild(s);
+      ul.appendChild(li);
+    });
+    $('results').classList.remove('hidden');
+  }
+  $('resDone').onclick = async () => {
+    $('results').classList.add('hidden');
+    scanned = []; $('notes').value = ''; last = { code: '', t: 0 };
+    await loadInit(); render();
+  };
+
+  // ---------- saved (offline) batches ----------
+  function updatePending(){
+    const q = store.get('pending') || [], p = $('pending');
+    if (!q.length){ p.classList.add('hidden'); return; }
+    p.innerHTML = ''; p.classList.remove('hidden');
+    p.appendChild(document.createTextNode(q.length + (q.length === 1 ? ' batch' : ' batches') + ' saved, not sent yet.'));
+    const b = document.createElement('button'); b.textContent = 'Send now'; b.onclick = flushPending; p.appendChild(b);
+  }
+  async function flushPending(){
+    let q = store.get('pending') || [], sent = 0;
+    while (q.length){
+      try {
+        const d = await post(q[0]);
+        if (d.error === 'BAD_PIN'){ toast('Saved batch needs a valid PIN. Sign in again.', 'bad'); break; }
+        if (d.error){ toast(d.error, 'bad'); break; }
+        q.shift(); sent++; store.set('pending', q);
+      } catch(e){ break; }
+    }
+    updatePending();
+    if (sent){ toast(sent + ' saved ' + (sent === 1 ? 'batch' : 'batches') + ' sent'); await loadInit(); render(); }
+  }
+  window.addEventListener('online', flushPending);
+
+  // ---------- boot ----------
+  (async function(){
+    if (API_URL.indexOf('PASTE_') === 0){ $('login').classList.remove('hidden'); $('loginMsg').textContent = 'Set API_URL in index.html first.'; return; }
+    const ok = await loadInit();
+    if (!ok){ $('login').classList.remove('hidden'); return; }
+    if (session && techs.includes(session.name)){
+      // browsers need one tap before the camera/sound start; reuse the saved sign-in via the Start button
+      showLogin();
+      $('pin').value = session.pin;
+    } else showLogin();
+  })();
+</script>
+</body>
+</html>
